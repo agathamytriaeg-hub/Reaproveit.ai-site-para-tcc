@@ -1,4 +1,3 @@
-
 /* ======================================================
    REAPROVEIT.AI - PÁGINA DE RECEITAS
 ====================================================== */
@@ -20,6 +19,8 @@ const recipesContent = document.getElementById("recipesContent");
 const recipesArea = document.querySelector(".recipes-area");
 
 const selectedIngredient = document.getElementById("selectedIngredient");
+let clearSelectedIngredientsButton = null;
+
 const recipeList = document.getElementById("recipeList");
 const closeRecipes = document.getElementById("closeRecipes");
 const contador = document.getElementById("contador");
@@ -86,7 +87,7 @@ function criarControlesReceitas() {
             class="generate-ai-button"
             disabled
         >
-            ✨ Gerar receitas com IA
+             Gerar receitas com IA
         </button>
 
     `;
@@ -226,7 +227,8 @@ cards.forEach(card => {
         atualizarControles();
         atualizarTitulo();
 
-        // Quando a seleção muda, limpa os resultados antigos.
+        mostrarBotaoLimparSelecao(false);
+
         ultimaRespostaIA = [];
         ultimaRespostaBanco = [];
         modoAtual = "";
@@ -253,6 +255,88 @@ cards.forEach(card => {
     });
 
 });
+
+// ======================================================
+// BOTÃO PARA LIMPAR INGREDIENTES APÓS A GERAÇÃO DA IA
+// ======================================================
+
+function criarBotaoLimparSelecao() {
+
+    if (!selectedIngredient || clearSelectedIngredientsButton) return;
+
+    clearSelectedIngredientsButton = document.createElement("button");
+
+    clearSelectedIngredientsButton.type = "button";
+    clearSelectedIngredientsButton.id = "clearSelectedIngredientsButton";
+
+    clearSelectedIngredientsButton.textContent =
+        "Limpar ingredientes selecionados";
+
+    clearSelectedIngredientsButton.style.cssText = `
+        display: none;
+        width: 100%;
+        margin-top: 14px;
+        padding: 14px 20px;
+        border: none;
+        border-radius: 14px;
+        background: #f47720;
+        color: #ffffff;
+        font-family: "DM Sans", sans-serif;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    `;
+
+    clearSelectedIngredientsButton.addEventListener("mouseenter", () => {
+        clearSelectedIngredientsButton.style.background = "#df6415";
+        clearSelectedIngredientsButton.style.transform = "translateY(-2px)";
+    });
+
+    clearSelectedIngredientsButton.addEventListener("mouseleave", () => {
+        clearSelectedIngredientsButton.style.background = "#f47720";
+        clearSelectedIngredientsButton.style.transform = "translateY(0)";
+    });
+
+    clearSelectedIngredientsButton.addEventListener(
+        "click",
+        limparIngredientesSelecionados
+    );
+
+    selectedIngredient.insertAdjacentElement(
+        "afterend",
+        clearSelectedIngredientsButton
+    );
+}
+
+function mostrarBotaoLimparSelecao(mostrar) {
+
+    if (!clearSelectedIngredientsButton) return;
+
+    clearSelectedIngredientsButton.style.display =
+        mostrar ? "block" : "none";
+}
+
+function limparIngredientesSelecionados() {
+
+    cards.forEach(card => {
+
+        card.classList.remove("selected");
+
+        card.setAttribute("aria-pressed", "false");
+
+    });
+
+    ingredientesSelecionados = [];
+
+    atualizarControles();
+    atualizarTitulo();
+
+    // Mantém as receitas geradas na tela.
+    mostrarBotaoLimparSelecao(false);
+}
+
+criarBotaoLimparSelecao();
 
 // ======================================================
 // ATUALIZAR TÍTULO
@@ -306,7 +390,6 @@ function atualizarControles() {
         }
     }
 
-    // A API atual da Groq exige pelo menos dois ingredientes.
     if (botaoIA) {
         botaoIA.disabled = quantidade < 2;
     }
@@ -346,14 +429,13 @@ async function buscarReceitasBanco() {
         return;
     }
 
-    // A rota atual do banco aceita apenas um ingrediente por consulta.
-    // Mantemos o primeiro ingrediente selecionado.
-
     const ingrediente = ingredientesSelecionados[0];
 
     abrirPainel();
 
     modoAtual = "banco";
+
+    mostrarBotaoLimparSelecao(false);
 
     mostrarLoading("Buscando receitas cadastradas...");
 
@@ -436,6 +518,8 @@ async function gerarReceitasIA() {
 
     modoAtual = "ia";
 
+    mostrarBotaoLimparSelecao(false);
+
     mostrarLoading("Nossa IA está combinando seus ingredientes...");
 
     atualizarTitulo();
@@ -505,7 +589,8 @@ async function gerarReceitasIA() {
         console.error("Erro ao gerar receitas com IA:", erro);
 
         mostrarErro(
-            erro.message || "Não foi possível gerar receitas com IA."
+            erro.message ||
+            "Não foi possível gerar as receitas. Tente novamente."
         );
 
     } finally {
@@ -514,7 +599,7 @@ async function gerarReceitasIA() {
 
             botaoIA.disabled = ingredientesSelecionados.length < 2;
 
-            botaoIA.textContent = "✨ Gerar receitas com IA";
+            botaoIA.textContent = " Gerar receitas com IA";
         }
     }
 }
@@ -535,34 +620,44 @@ function mostrarReceitasIA(receitas) {
 
         const card = document.createElement("article");
 
-        card.className = "recipe-card ai-recipe-card";
+        card.className = "recipe-card";
 
         card.style.animationDelay = `${index * 0.1}s`;
 
+        const nome = receita.nome || "Receita sugerida pela IA";
+
+        const descricao =
+            receita.descricao ||
+            "Uma sugestão para aproveitar melhor seus ingredientes.";
+
+        const tempo = receita.tempo_preparo || "Não informado";
+
+        const dificuldade = receita.dificuldade || "Não informada";
+
         card.innerHTML = `
 
-            <div class="ai-recipe-label">
-                ✨ Receita sugerida pela IA
-            </div>
+            <span class="ai-recipe-label">
+                Receita sugerida pela IA
+            </span>
 
             <div class="recipe-info">
 
                 <h3>
-                    ${escaparHTML(receita.nome || "Receita sugerida")}
+                    ${escaparHTML(nome)}
                 </h3>
 
                 <p class="ai-description">
-                    ${escaparHTML(receita.descricao || "")}
+                    ${escaparHTML(descricao)}
                 </p>
 
                 <div class="ai-recipe-meta">
 
                     <span>
-                        ⏱ ${escaparHTML(receita.tempo_preparo || "Tempo não informado")}
+                        ${escaparHTML(tempo)}
                     </span>
 
                     <span>
-                        ${escaparHTML(receita.dificuldade || "Dificuldade não informada")}
+                        • ${escaparHTML(dificuldade)}
                     </span>
 
                 </div>
@@ -578,76 +673,74 @@ function mostrarReceitasIA(receitas) {
 
         `;
 
-        card.querySelector(".recipe-button").addEventListener("click", () => {
+        card
+            .querySelector(".recipe-button")
+            .addEventListener("click", () => {
 
-            mostrarDetalhesIA(receita);
+                mostrarDetalhesIA(receita);
 
-        });
+            });
 
         recipeList.appendChild(card);
     });
+
+    // O botão aparece somente depois que as receitas forem exibidas.
+    mostrarBotaoLimparSelecao(true);
 }
 
 // ======================================================
-// NORMALIZAR LISTAS DE INGREDIENTES
+// NORMALIZAR LISTAS DE INGREDIENTES DA IA
 // ======================================================
 
 function normalizarLista(lista) {
 
-    if (!Array.isArray(lista)) {
-        return [];
+    if (!lista) return [];
+
+    if (Array.isArray(lista)) {
+        return lista;
     }
 
-    return lista.map(item => {
+    if (typeof lista === "string") {
 
-        if (typeof item === "string") {
+        return lista
+            .split(/\r?\n|,/)
+            .map(item => item.trim())
+            .filter(item => item !== "");
+    }
 
-            return {
-                nome: item,
-                quantidade: "",
-                justificativa: ""
-            };
-        }
-
-        if (!item || typeof item !== "object") {
-            return null;
-        }
-
-        return {
-
-            nome: item.nome || item.ingrediente || "",
-
-            quantidade: item.quantidade || "",
-
-            justificativa: item.justificativa || ""
-
-        };
-
-    }).filter(item => item && item.nome);
+    return [];
 }
 
 // ======================================================
-// CRIAR LISTA DE INGREDIENTES
+// CRIAR HTML DE UMA LISTA DE INGREDIENTES
 // ======================================================
 
 function criarListaIngredientes(lista) {
 
+    lista = normalizarLista(lista);
+
     if (!lista.length) {
-        return "<li>Nenhum ingrediente informado.</li>";
+        return "<li>Não informado.</li>";
     }
 
     return lista.map(item => {
 
-        const quantidade = item.quantidade
-            ? ` — ${escaparHTML(item.quantidade)}`
+        const nome = typeof item === "string"
+            ? item
+            : item.nome || item.ingrediente || "Ingrediente";
+
+        const quantidade = typeof item === "object"
+            ? item.quantidade
+            : "";
+
+        const complemento = quantidade
+            ? ` — ${escaparHTML(quantidade)}`
             : "";
 
         return `
-
             <li>
-                <strong>${escaparHTML(item.nome)}</strong>${quantidade}
+                <strong>${escaparHTML(nome)}</strong>${complemento}
             </li>
-
         `;
 
     }).join("");
@@ -661,11 +754,11 @@ function mostrarDetalhesIA(receita) {
 
     if (!recipeList) return;
 
-    const aproveitados = normalizarLista(
+    const aproveitados = criarListaIngredientes(
         receita.ingredientes_aproveitados
     );
 
-    const adicionais = normalizarLista(
+    const adicionais = criarListaIngredientes(
         receita.ingredientes_adicionais
     );
 
@@ -673,36 +766,34 @@ function mostrarDetalhesIA(receita) {
         receita.ingredientes_nao_utilizados
     );
 
-    const preparo = formatarModoPreparo(
-        receita.modo_preparo
-    );
-
-    const adicionaisHTML = adicionais.length
-        ? criarListaIngredientes(adicionais)
-        : "<li>Nenhum ingrediente adicional.</li>";
-
     const naoUtilizadosHTML = naoUtilizados.length
-        ? naoUtilizados.map(item => `
+        ? naoUtilizados.map(item => {
 
-            <li>
+            const nome = typeof item === "string"
+                ? item
+                : item.nome || "Ingrediente";
 
-                <strong>${escaparHTML(item.nome)}</strong>
+            const justificativa = typeof item === "object"
+                ? item.justificativa || ""
+                : "";
 
-                <p class="unused-reason">
-                    ${escaparHTML(
-                        item.justificativa ||
-                        "Não foi necessário utilizar este ingrediente."
-                    )}
-                </p>
+            return `
+                <li>
+                    <strong>${escaparHTML(nome)}</strong>
+                    ${justificativa
+                        ? ` — ${escaparHTML(justificativa)}`
+                        : ""}
+                </li>
+            `;
 
-            </li>
-
-        `).join("")
+        }).join("")
         : "<li>Todos os ingredientes selecionados foram aproveitados.</li>";
+
+    const preparoHTML = formatarModoPreparo(receita.modo_preparo);
 
     recipeList.innerHTML = `
 
-        <div class="recipe-detail ai-recipe-detail">
+        <div class="recipe-detail">
 
             <button
                 class="back-button"
@@ -712,9 +803,9 @@ function mostrarDetalhesIA(receita) {
                 ← Voltar para receitas
             </button>
 
-            <div class="ai-recipe-label">
-                ✨ Receita sugerida pela IA
-            </div>
+            <span class="ai-recipe-label">
+                 Receita criada pela IA
+            </span>
 
             <h2>
                 ${escaparHTML(receita.nome || "Receita")}
@@ -727,21 +818,21 @@ function mostrarDetalhesIA(receita) {
             <div class="ai-recipe-meta">
 
                 <span>
-                    ⏱ ${escaparHTML(receita.tempo_preparo || "Não informado")}
+                    ${escaparHTML(receita.tempo_preparo || "Não informado")}
                 </span>
 
                 <span>
-                    ${escaparHTML(receita.dificuldade || "Não informada")}
+                    • ${escaparHTML(receita.dificuldade || "Não informada")}
                 </span>
 
             </div>
 
             <section class="recipe-section">
 
-                <h3>Ingredientes selecionados aproveitados</h3>
+                <h3>Ingredientes aproveitados</h3>
 
                 <ul>
-                    ${criarListaIngredientes(aproveitados)}
+                    ${aproveitados}
                 </ul>
 
             </section>
@@ -751,12 +842,12 @@ function mostrarDetalhesIA(receita) {
                 <h3>Ingredientes adicionais</h3>
 
                 <ul>
-                    ${adicionaisHTML}
+                    ${adicionais}
                 </ul>
 
             </section>
 
-            <section class="recipe-section unused-section">
+            <section class="recipe-section">
 
                 <h3>Ingredientes não utilizados</h3>
 
@@ -771,14 +862,14 @@ function mostrarDetalhesIA(receita) {
                 <h3>Modo de preparo</h3>
 
                 <div class="lista-passos">
-                    ${preparo}
+                    ${preparoHTML}
                 </div>
 
             </section>
 
-            <section class="reuse-tip">
+            <section class="recipe-section">
 
-                <h3>💡 Dica para evitar desperdício</h3>
+                <h3>Dica de reaproveitamento</h3>
 
                 <p>
                     ${escaparHTML(
@@ -1213,6 +1304,8 @@ if (closeRecipes) {
 
         modoAtual = "";
 
+        mostrarBotaoLimparSelecao(false);
+
         atualizarControles();
 
         if (selectedIngredient) {
@@ -1231,10 +1324,12 @@ if (closeRecipes) {
 // ======================================================
 
 cards.forEach(card => {
+
     card.setAttribute(
         "aria-pressed",
         card.classList.contains("selected") ? "true" : "false"
     );
+
 });
 
 atualizarControles();
